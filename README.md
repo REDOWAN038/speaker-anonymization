@@ -1,13 +1,17 @@
 # Speaker Anonymization
 
+**News: The main branch of the repository contains now the code to our latest paper, Probing the Feasibility of Multilingual Speaker Anonymization,
+that has been accepted at Interspeech 2024. For the previous version, please go to the [prosody_cloning](https://github.com/DigitalPhonetics/speaker-anonymization/tree/prosody_cloning)  branch.**
+
 This repository contains the speaker anonymization system developed at the Institute for Natural Language Processing 
 (IMS) at the University of Stuttgart, Germany. The system is described in the following papers:
 
-| Paper | Published at | Branch | Demo |
-|-------|--------------|--------|------|
+| Paper | Published at | Branch                                                                                                              | Demo |
+|-------|--------------|---------------------------------------------------------------------------------------------------------------------|------|
 | [Speaker Anonymization with Phonetic Intermediate Representations](https://www.isca-speech.org/archive/interspeech_2022/meyer22b_interspeech.html) | [Interspeech 2022](https://www.interspeech2022.org/) | [phonetic_representations](https://github.com/DigitalPhonetics/speaker-anonymization/tree/phonetic_representations) | [https://huggingface.co/spaces/sarinam/speaker-anonymization](https://huggingface.co/spaces/sarinam/speaker-anonymization) |
-| [Anonymizing Speech with Generative Adversarial Networks to Preserve Speaker Privacy](https://ieeexplore.ieee.org/document/10022601) | [SLT 2022](https://slt2022.org/) | [gan_embeddings](https://github.com/DigitalPhonetics/speaker-anonymization/tree/gan_embeddings) | [https://huggingface.co/spaces/sarinam/speaker-anonymization-gan](https://huggingface.co/spaces/sarinam/speaker-anonymization-gan) |
-| [Prosody Is Not Identity: A Speaker Anonymization Approach Using Prosody Cloning](https://ieeexplore.ieee.org/document/10096607) | [ICASSP 2023](https://2023.ieeeicassp.org/) | [main](https://github.com/DigitalPhonetics/speaker-anonymization/tree/main) | - |
+| [Anonymizing Speech with Generative Adversarial Networks to Preserve Speaker Privacy](https://ieeexplore.ieee.org/document/10022601) | [SLT 2022](https://slt2022.org/) | [gan_embeddings](https://github.com/DigitalPhonetics/speaker-anonymization/tree/gan_embeddings)                     | [https://huggingface.co/spaces/sarinam/speaker-anonymization-gan](https://huggingface.co/spaces/sarinam/speaker-anonymization-gan) |
+| [Prosody Is Not Identity: A Speaker Anonymization Approach Using Prosody Cloning](https://ieeexplore.ieee.org/document/10096607) | [ICASSP 2023](https://2023.ieeeicassp.org/) | [prosody_cloning](https://github.com/DigitalPhonetics/speaker-anonymization/tree/prosody_cloning)                   | - |
+| Probing the Feasibility of Multilingual Speaker Anonymization | Soon at [Interspeech 2024](https://interspeech2024.org/) | [multilingual](https://github.com/DigitalPhonetics/speaker-anonymization/tree/multilingual)                         | coming soon |
 
 If you want to see the code to the respective papers, go to the branch referenced in the table. The latest version 
 of our system can be found here on the main branch.
@@ -18,36 +22,46 @@ of our system can be found here on the main branch.
 
 
 ## System Description
-The system is based on the Voice Privacy Challenge 2020 which is included as submodule. It uses the basic idea of 
-speaker embedding anonymization with neural synthesis, and uses the data and evaluation framework of the challenge. 
-For a detailed description of the system, please read our Interspeech paper linked above.
+The system, as described in [our paper at ICASSP 2023](https://ieeexplore.ieee.org/document/10096607), consists of three steps:
 
-### Added Features
-Since the publication of the first paper, some features have been added. The new structure of the pipeline and its 
-capabilities contain:
-* **GAN-based speaker anonymization**: We show in [this paper](https://arxiv.org/abs/2210.07002) that a Wasserstein 
-  GAN can be trained to generate artificial speaker embeddings that resemble real ones but are not connected to any 
-  known speaker -- in our opinion, a crucial condition for anonymization. The current GAN model in the latest 
-  release v2.0 has been trained to generate a custom type of 128-dimensional speaker embeddings (included also in our 
-  speech 
-  synthesis toolkit [IMSToucan](https://github.com/DigitalPhonetics/IMS-Toucan)) instead of x-vectors or ECAPA-TDNN 
-  embeddings.
-* **Prosody cloning**: We now provide an option to transfer the original prosody to the anonymized audio via [prosody 
-  cloning](https://arxiv.org/abs/2206.12229)! If you want to avoid an exact cloning but modify it slightly (but 
-  randomly to avoid reversability), use the random offset thresholds. They are given as lower and upper threshold, 
-  as an percentage in relation to the modification. For instance, if you give these thresholds as (80, 120), you 
-  will modify the pitch and energy values of each phone by multiplying it with a random value between 80% and 120% 
-  (leading to either weakening or amplifying the signal).
-* **ASR**: Our ASR is now using a [Branchformer](https://arxiv.org/abs/2207.02971) encoder and includes word 
-  boundaries and stress markers in its output.
+(1) Three kinds of information are extracted from the input signal:
+* the linguistic content using an E2E ASR, represented in form of phonetic transcriptions
+* the prosody in form of phone-wise normalized pitch, energy and duration values
+* the speaker embedding in form of GST style embeddings, trained together with the TTS
+
+(2) Speaker-specific information are anonymized to hide the speaker identity
+* this is done by sampling an artificial speaker embedding generated by a GAN (described [in this paper](https://ieeexplore.ieee.org/document/10022601))
+and replacing the embedding of the input speaker with this artificial one. Using cosine distance, we make sure that the new embedding is not too similar to the 
+original one
+* we can further manipulate pitch and energy using random offsets (this is not done in the current configs)
+
+(3) Synthesis of the anonymized speech
+* using a FastSpeech2-like TTS and a HiFiGAN vocoder, as implemented in our speech synthesis toolkit [IMSToucan](https://github.com/DigitalPhonetics/IMS-Toucan), we use the different information paths to 
+generate an anonymized version of the input speech
+
+### Multilingual additions
+Our current implementation is based on the structure in our Voice Privacy toolkit [VoicePAT](https://github.com/DigitalPhonetics/VoicePAT).
+
+The main differences to the system described above are the replacements of ASR and TTS models by multilingual counterparts:
+* We replace our monolingual custom ASR by OpenAI's [Whisper-large-v3](https://huggingface.co/openai/whisper-large-v3). This model supports 99 languages and includes its own language
+identification (currently not used in our system). The output of the model are orthographic text transcriptions.
+* We replace our monolingual TTS with a new version that supports 12 languages, described in the paper 
+[Low-Resource Multilingual and Zero-Shot Multispeaker TTS](https://aclanthology.org/2022.aacl-main.56). All code and models are provided in 
+[IMS Toucan v2.5](https://github.com/DigitalPhonetics/IMS-Toucan/tree/v2.5) which is included as a submodule in this repository
+
+(We plan to soon update the TTS to our [latest version supporting over 7000 languages!](https://github.com/DigitalPhonetics/IMS-Toucan/releases/tag/v3.0))
 
 ![architecture](figures/architecture.png)
 
-The current code on the main branch expects the models of release v2.0. If you want to use the pipeline as presented at 
-Interspeech 2022, 
-please go to 
-the 
-[phonetic_representations branch](https://github.com/DigitalPhonetics/speaker-anonymization/tree/phonetic_representations).
+
+## Multilingual Data
+We propose new speaker verification trials for multilingual speaker anonymization. For this, we use Multilingual LibriSpeech and CommonVoice.
+You can find these new trials in the [trials_data](trials_data) folder.
+
+**More information about these datasets will be added soon.**
+
+## Audio Samples
+**Will be added soon.**
 
 ## Installation
 ### 1. Clone repository
@@ -57,104 +71,88 @@ git clone --recurse-submodules https://github.com/DigitalPhonetics/speaker-anony
 ``` 
 
 ### 2. Download models
-Download the models [from the release page (v2.0)](https://github.com/DigitalPhonetics/speaker-anonymization/releases/tag/v2.0), unzip the folders and place them into a *models* 
-folder as stated in the release notes. Make sure to not unzip the single ASR models, only the outer folder.
-```
-cd speaker-anonymization
-mkdir models
-cd models
-for file in anonymization asr tts; do
-    wget https://github.com/DigitalPhonetics/speaker-anonymization/releases/download/v2.0/${file}.zip
-    unzip ${file}.zip
-    rm ${file}.zip
-done
-```
+You will need to download the following models and specify the location to them in the respective config files:
 
-### 3. Install challenge framework
-In order to be able to use the framework of the Voice Privacy Challenge 2020 for evaluation, you need to install it 
-first. According to [the challenge repository](https://github.com/Voice-Privacy-Challenge/Voice-Privacy-Challenge-2020), this should simply be
-```
-cd Voice-Privacy-Challenge-2020
-./install.sh
-```
-However, on our systems, we had to make certain adjustments and also decided to use a more light-weight environment 
-that minimizes unnecessary components. If you are interested, you can see our steps in 
-[alternative_challenge_framework_installation.md](alternative_challenge_framework_installation.md). Just as a note: It is 
-very possible that those would not directly work on your system and would need to be modified.
+For anonymization:
 
-**Note: this step will download and install Kaldi, and might lead to complications. Additionally, make sure that you 
-are running the install script on a device with access to GPUs and CUDA.**
+| Name | Function | Link | Location in config |
+|------|----------|------|--------------------|
+| embedding_function.pt | Speaker embedding encoder | [https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/embedding_function.pt](https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/embedding_function.pt) | modules > speaker_embeddings > embed_model_path && modules > tts > embeddings_path |
+| embedding_gan.pt | Artificial speaker embeddings generator | [https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/embedding_gan.pt](https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/embedding_gan.pt) | tbd |
+| aligner.pt | Prosody aligner | [https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/aligner.pt](https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/aligner.pt) | modules > prosody > aligner_model_path |
+| ToucanTTS_Meta.pt | TTS model | [https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/ToucanTTS_Meta.pt](https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/ToucanTTS_Meta.pt) | modules > tts > fastspeech_path |
+| Avocodo.pt | Vocoder | [https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/Avocodo.pt](https://github.com/DigitalPhonetics/IMS-Toucan/releases/download/v2.5/Avocodo.pt) | modules > tts > hifigan_path |
+| asr_branchformer_tts-phn_en.zip | Monolingual ASR model | [https://github.com/DigitalPhonetics/speaker-anonymization/releases/download/v2.0/asr_branchformer_tts-phn_en.zip](https://github.com/DigitalPhonetics/speaker-anonymization/releases/download/v2.0/asr_branchformer_tts-phn_en.zip) | modules > asr > model_path |
+
+For evaluation:
+
+| Name | Function             | Link | Location in config |
+|------|----------------------|------|--------------------|
+| asv_pre_ecapa | Pretrained ASV model | [https://github.com/DigitalPhonetics/VoicePAT/releases/download/v1/pre_eval_models.zip](https://github.com/DigitalPhonetics/VoicePAT/releases/download/v1/pre_eval_models.zip) | privacy > asv > model_dir |
+You need to unzip the pre_eval_models.zip first. The folders contain some more models that you don't need for the experiments given in the configs.
+
+The whisper model is downloaded automatically.
 
 ### 4. Install requirements
-Additionally, install the [requirements](requirements.txt) (in the base directory of this repository):
+Create a virtual environment and install the [requirements](requirements.txt). The current code has been tested with Python 3.10.
 ```
 pip install -r requirements.txt
 ```
 
-## Getting started
-Before the actual execution of our pipeline system, you first need to download and prepare the challenge data and 
-the evaluation models. For 
-this, you will need a password provided by the organizers of the Voice Privacy Challenge. Please contact them (see 
-information on [their repository](https://github.com/Voice-Privacy-Challenge/Voice-Privacy-Challenge-2020) or 
-[website](https://www.voiceprivacychallenge.org/)) for 
-this access.
-
-You can do this by either
-
-### a) Executing our lightweight scripts: 
-This will only download and prepare the necessary models and datasets. Note that these scripts are simply extracts 
-of the challenge run script.
+### 4. Prepare data
+As described above, we include the trial data for Multilingual LibriSpeech and CommonVoice in several languages.
+Before you can use them, you need to prepare the data information in kaldi format. For this, simply run the following command:
 ```
-cd setup_scripts
-./run_download_data.sh
-./run_prepare_data.sh
+python run_prepare_data.py --mls_path <path-to-MLS-corpus> --cv_path <path-to-CV-corpus> --output_path <path-to-output-files>
+```
+You need to specify the location of the [MLS](http://www.openslr.org/94) and [CommonVoice](https://commonvoice.mozilla.org/en/datasets) corpora. 
+If you don't already have them on your computer, you need to download these corpora first.
+Note that we expect that you have CommonVoice version 16.1 or higher for all languages.
+
+`<path-to-MLS-corpus>` should point to the root directory of the MLS dataset, in which folders like `mls_dutch` are located.
+`<path-to-CV-corpus>` should point to the root directory for the CommonVoice version, in which folders like `nl` are located.
+`<path-to-output-files>` points to `data` as subfolder of this repository by default.
+
+If you want to test the model on the standard voice privacy evaluation splits for English, and train the ASV model on LibriSpeech train-clean-360,
+please go to the [VPC 2022 website](https://github.com/Voice-Privacy-Challenge/Voice-Privacy-Challenge-2022) to request data access. These files should also be located in your `<path-to-output-files>`.
+
+
+## Running the anonymization and evaluation pipelines
+All settings in the pipeline are controlled in config files, located in the [configs](configs) folder. 
+Before running any scripts, make sure that you set all paths in these configs correctly.
+Anonymization and evaluation are executed in separate pipelines. You can run them with simple commands:
+
+### Anonymization:
+```
+python run_anonymization.py --config anon/anon_ims_sttts_pc_whisper.yaml --lang <lang> --gpu_ids <gpu_ids>
+```
+`<lang>` is the tag of the language you want to run the anonymization for, e.g., `en`, `de`, `it`.
+`<gpu_ids>` is a string of one or several GPU IDs you want the anonymization to use, e.g., `0` or `0,2,4`.
+
+### Evaluation:
+There are two types of evaluation configs. If you are confused about this, please check out the [evaluation plan of the VPC 2022](https://arxiv.org/abs/2203.12468).
+
+#### Evaluation with models trained on original data (eval_pre)
+```
+python run_evaluation.py --config eval_pre/eval_pre_whisper.yaml --lang <lang> --gpu_ids <gpu_ids>
 ```
 
-or by
-### b) Executing the challenge run script:
-This will download and prepare everything necessary AND run the baseline system of the Voice Privacy Challenge 2020. 
-Note that you will need to have installed the whole framework by the challenge install script before.
+#### ASV evaluation with a model trained on anonymized data (eval_post)
+For this, you first need to run the pipeline for English to train the model. Make sure that you have anonymized the libri-clean-360 first (we need this as training data). 
+
+*Note: In the current version, we finetune the pretrained model on only a part of the anonymized libri-clean-360. You can find the kaldi files for this part in the [data.zip](https://github.com/DigitalPhonetics/VoicePAT/releases/download/v2/data.zip) of VoicePAT.*
 ```
-cd Voice-Privacy-Challenge-2020/baseline
-./run.sh
+python run_evaluation.py --config eval_post/eval_post_asv_en_training.yaml --lang en --gpu_ids <gpu_ids>
 ```
 
-### Running the pipeline
-The system pipeline controlled in [run_inference.py](run_inference.py). You can run it via
+After that, you can use this model for other languages too:
 ```
-python run_inference.py --gpu <gpu_id>
+python run_evaluation.py --config eval_post/eval_post_asv_with_trained_model.yaml --lang <lang> --gpu_ids <gpu_ids>
 ```
-with <gpu_id> being the ID of the GPU the code should be executed on. If this option is not specified, it will run 
-on CPU (not recommended).
 
-The script will anonymize the development and test data of LibriSpeech and VCTK in three steps:
-1. ASR: Recognition of the linguistic content, output in form of text or phone sequences
-2. Anonymization: Modification of speaker embeddings, output as torch vectors
-3. TTS: Synthesis based on recognized transcription, extracted prosody and anonymized speaker embedding, output as 
-   audio files (wav)
-
-Each module produces intermediate results that are saved to disk. A module is only executed if previous intermediate 
-results for dependent pipeline combination do not exist or if recomputation is forced. Otherwise, the previous 
-results are loaded. Example: The ASR module is 
-only executed if there are no transcriptions produced by exactly that ASR model. On the other hand, the TTS is 
-executed if (a) the ASR was performed directly before (new transcriptions), and/or (b) the anonymization was 
-performed directly before (new speaker embeddings), and/or (c) no TTS results exist for this combination of models.
-
-If you want to change any settings, like the particular models or datasets, you can adjust the *settings* dictionary 
-in [run_inference.py](run_inference.py). If you want to force recomputation for a specific module, add its tag to 
-the *force_compute* list. 
-
-Immediately after the anonymization pipeline terminates, the evaluation pipeline is started. It performs some 
-preparation steps and then executes the evaluation part of the challenge run script (this extract can be found in 
-[evaluation/run_evaluation.sh](../speaker-anonymization/evaluation/run_evaluation.sh)).
-
-Finally, for clarity, the most important parts of the evaluation results as well as the used settings are copied to 
-the [results](results) directory.
-
-
-## Citation
+## Citations
 ```
-@inproceedings{meyer22b_interspeech,
+@inproceedings{meyer2022speaker,
   author={Sarina Meyer and Florian Lux and Pavel Denisov and Julia Koch and Pascal Tilli and Ngoc Thang Vu},
   title={{Speaker Anonymization with Phonetic Intermediate Representations}},
   year=2022,
@@ -162,4 +160,21 @@ the [results](results) directory.
   pages={4925--4929},
   doi={10.21437/Interspeech.2022-10703}
 }
+@inproceedings{meyer2023anonymizing,
+  author={Meyer, Sarina and Tilli, Pascal and Denisov, Pavel and Lux, Florian and Koch, Julia and Vu, Ngoc Thang},
+  booktitle={2022 IEEE Spoken Language Technology Workshop (SLT)}, 
+  title={Anonymizing Speech with Generative Adversarial Networks to Preserve Speaker Privacy}, 
+  year={2023},
+  pages={912-919},
+  doi={10.1109/SLT54892.2023.10022601}
+ }
+@inproceedings{meyer2023prosody,
+  author={Meyer, Sarina and Lux, Florian and Koch, Julia and Denisov, Pavel and Tilli, Pascal and Vu, Ngoc Thang},
+  booktitle={ICASSP 2023 - 2023 IEEE International Conference on Acoustics, Speech and Signal Processing (ICASSP)}, 
+  title={Prosody Is Not Identity: A Speaker Anonymization Approach Using Prosody Cloning}, 
+  year={2023},
+  pages={1-5},
+  doi={10.1109/ICASSP49357.2023.10096607}
+}
 ```
+

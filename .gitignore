@@ -128,7 +128,6 @@ dmypy.json
 # Pyre type checker
 .pyre/
 
-models/
-original_speaker_embeddings/
-corpora/
-results/
+.idea/
+
+data/

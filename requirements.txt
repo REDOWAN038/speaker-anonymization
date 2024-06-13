@@ -1,6 +1,15 @@
--r Voice-Privacy-Challenge-2020/requirements.txt
--r IMSToucan/requirements.txt
+-r anonymization/modules/tts/IMSToucan/requirements.txt
+numpy
+torch
+torchaudio
+scikit-learn
+speechbrain
+jupyter
 espnet
-espnet-model-zoo
-cvxopt
-tqdm
+espnet_model_zoo
+pyyaml
+openpyxl
+seaborn
+transformers
+noisereduce
+accelerate
