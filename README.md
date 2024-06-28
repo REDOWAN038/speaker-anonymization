@@ -55,10 +55,166 @@ identification (currently not used in our system). The output of the model are o
 
 
 ## Multilingual Data
-We propose new speaker verification trials for multilingual speaker anonymization. For this, we use Multilingual LibriSpeech and CommonVoice.
-You can find these new trials in the [trials_data](trials_data) folder.
+We propose new speaker verification trials for multilingual speaker anonymization. For this, we use Multilingual LibriSpeech (MLS) and CommonVoice (CV).
+You can find these new trials in the [trials_data](trials_data) folder. Some additional information about the data format can be found in [trials_data/README.md](trials_data/README.md).
 
-**More information about these datasets will be added soon.**
+*Note: We do not propose new data collections but only trial files for already existing corpora.*
+
+The data is available for 9 languages: English (en), German (de), French (fr), Italian (it), Spanish (es), Portuguese (pt), Dutch (nl), Polish (pl), and Russian (ru).
+In the following, we will refer to them only by their language codes.
+
+### Data Preparation Process
+For the preparation of the data into enrollment and trial subset, we tried to follow the dev and test files of the Voice Privacy Challenge 2022.
+This results in far more nontarget than target trials, and additional speakers in the trial set that are not contained in the enrollment set.
+In the following, we describe for MLS and CV separately how we obtained the splits given in [trials_data](trials_data).
+
+#### MLS
+The MLS corpus ([available here](https://www.openslr.org/94/)) already comes with a split into train / dev / test, which we reuse here.
+The data is further divided into 8 languages: en, de, nl, fr, es, it, pt and pl.
+We only take the dev and test sets for 6 languages (de, nl, fr, es, it, and pt). 
+For en, we already have an alternative from the Voice Privacy Challenges based on the monolingual English LibriSpeech, so there is no need for another part from MLS.
+For pl, the MLS part only contains 2 speakers per gender and dev / test split, which is too small for effective speaker verification.
+*(Sidenote: Dutch is not significantly bigger with only 3 speakers per gender and split, but we decided to keep it anyway).*
+We do not further restrict the number of utterances or speaker in each language and dev / test set, which results in a large inbalance across languages.
+However, as given in the original MLS splits, the languages itself are balanced in terms of gender
+
+#### CV
+Mozilla's CV data collection is significantly bigger than MLS, so we could select more speakers per language and make sure that the datasets per language were more or less balanced.
+We take the data from CV Version 16.1 ([available here](https://commonvoice.mozilla.org/en/datasets)).
+Please note that users who *donated* their voice to the data collection can opt out of being included in the data at any point.
+This means that some speakers or utterances contained in our trial data might be missing in future downloads of the CV corpus.
+We further want to mention that we had to use the field `client ID` in the CV corpus for speaker assignment which is not fully accurate. 
+The same speaker might end up with several client IDs if they are recording the utterances in different sessions. 
+However, for the purpose of speaker anonymization, this issue is not as relevant as for pure speaker recognition.
+
+We use CV for all of our 9 languages. 
+CV does not come with a division into train / dev / test splits, so we randomly sample speakers and utterances from it.
+For this sampling, we consider only speakers that have gender annotated as either female or male, and have recorded at least 50 validated audios.
+We further make sure that we have the same number of female as male speakers which leads for several languages to a large reduction in size, with most languages having far more male speakers in CV than female speakers.
+This leads especially to a smaller dataset for pl, for which only 14 speakers per gender and dev / test split are available.
+We randomly select at most 20 speakers per gender for each dev and test in each language, and randomly choose up to 70 utterances per speaker.
+As our lower bound for speaker selection was originally 50 utterances per speaker, this results in 50-70 utterances per speaker.
+
+
+#### Separation into Enrollment and Trials
+In MLS, we use all speakers for the enrollment and trial. The only exception is de, for which more speakers are available. 
+In the MLS-de data, we reserve 5 speakers per gender and split for trial only, which creates some unseen distraction speakers in the trial data.
+In CV, we use 15 speakers per gender and split for enrollment (except for the smaller pl part, for which it is only 10), and also reserve up to 5 speakers per gender and split only for trial.
+Naturally, all enrollment speakers are also used in trial.
+
+15% of all utterances of a speaker (at least 5 utterances) are used as enrollment utterances, the rest for trial.
+All trial utterances are paired with each enrollment speaker of the respective gender.
+If an enrollment speaker is the actual speaker of that utterance, this is denoted as *target*, otherwise as *nontarget*.
+
+During the trials, the enrollment speaker is modeled as an average of the speaker embeddings of all enrollment utterances of that speaker.
+
+
+### Statistics
+For transparency, we provide concrete statistics for each dataset, language and dev / test split. 
+In these statistics, we don't distinguish between female and male speakers, but the numbers are balanced for each subset.
+The Libri and VCTK datasets are marked with asterisk (*) because they are not contained in this multilingual dataset but have to be obtained from the Voice Privacy Challenge organizers.
+Note that we use the development data only for internal tests. All results reported in our paper are obtained on the test data only.
+
+The following information is given for each dataset and language:
+* \# speakers: number of speakers used for both enrollment and trial (50% female / 50% male)
+* \# add.trial speakers: number of speakers additionally used only in trial
+* \# enroll utts: total number of utterances used in enrollment (across all speakers)
+* \# trial utts: total number of utterances used in trials (across all speakers)
+* \# target trials: number of target trials (enrollment speaker == trial speaker)
+* \# nontarget trials: number of nontarget trials (enrollment speaker != trial speaker)
+* \# words: total number of words across all trial utterances (the WER is computed based on them)
+* \# avg. utt length: average length of all utterances in the dataset, in seconds
+
+#### Development Data
+
+##### Total dataset statistics:
+
+| Dataset | Lang | # speakers | # add. trial speakers | # enroll utts | # trial utts | # target trials | # nontarget trials | # words | avg. utt length |
+|---------|------|------------|-----------------------|---------------|--------------|-----------------|--------------------|---------|-----------------|
+| Libri*  | en   | 29         | 11                    | 343           | 1978         | 1,348           | 27,362             | 39,804  | 6.99            |
+| VCTK*   | en   | 30         | 0                     | 600           | 11,372       | 4,491           | 35,925             | 86,627  | 3.31            |
+| MLS     | de   | 20         | 10                    | 333           | 3,136        | 1,936           | 29,424             | 111,245 | 14.90           |
+|         | fr   | 18         | 0                     | 354           | 2,062        | 2,062           | 16,496             | 73,007  | 15.03           |
+|         | it   | 10         | 0                     | 183           | 1,065        | 1,065           | 4,260              | 34,636  | 14.88           |
+|         | es   | 20         | 0                     | 349           | 2,059        | 2,059           | 18,531             | 74,782  | 14.95           |
+|         | pt   | 10         | 0                     | 119           | 707          | 707             | 2,828              | 24,733  | 15.90           |
+|         | nl   | 6          | 0                     | 461           | 2,634        | 2,634           | 5,268              | 11,0384 | 14.83           |
+| CV      | en   | 30         | 10                    | 279           | 2,306        | 1,691           | 32,899             | 22,394  | 4.96            |
+|         | de   | 30         | 9                     | 289           | 2,396        | 1,738           | 34,202             | 21,421  | 5.16            |
+|         | fr   | 30         | 10                    | 293           | 2,432        | 1,761           | 34,719             | 23,240  | 4.93            |
+|         | it   | 30         | 10                    | 286           | 2,421        | 1,722           | 34,593             | 23,745  | 5.69            |
+|         | es   | 30         | 10                    | 290           | 2,401        | 1,735           | 34,280             | 22,569  | 5.23            |
+|         | pt   | 30         | 10                    | 284           | 2,398        | 1,708           | 34,262             | 16,411  | 3.97            |
+|         | nl   | 30         | 10                    | 288           | 2,401        | 1,725           | 34,290             | 22,108  | 4.51            |
+|         | pl   | 20         | 8                     | 199           | 1,739        | 1,196           | 16,194             | 12,876  | 4.39            |
+|         | ru   | 30         | 10                    | 289           | 2,429        | 1,737           | 34,698             | 20,599  | 5.24            |
+
+##### Dataset statistics per speaker (average)
+
+| Dataset | Lang | # enroll utts | # trial utts | # target trials | # nontarget trials | # words  | 
+|---------|------|---------------|--------------|-----------------|--------------------|----------|
+| Libri*  | en   | 11.8          | 49.4         | 46.5            | 942.5              | 951.5    |
+| VCTK*   | en   | 20.0          | 379.1        | 149.7           | 1,197.5            | 2,790.0  |
+| MLS     | de   | 16.6          | 104.5        | 96.8            | 1,471.2            | 3,553.0  |
+|         | fr   | 19.7          | 114.6        | 114.6           | 916.4              | 4,350.0  |
+|         | it   | 18.3          | 106.5        | 106.5           | 426.0              | 4,405.5  |
+|         | es   | 17.4          | 103.0        | 103.0           | 926.6              | 4,300.5  |
+|         | pt   | 11.9          | 70.7         | 70.7            | 282.8              | 2,084.0  |
+|         | nl   | 76.8          | 439.0        | 439.0           | 878.0              | 45,515.0 |
+| CV      | en   | 9.3           | 59.1         | 56.4            | 1,096.6            | 627.0    |
+|         | de   | 9.6           | 59.9         | 57.9            | 1,140.1            | 492.5    |
+|         | fr   | 9.8           | 60.8         | 58.7            | 1,157.3            | 606.0    |
+|         | it   | 9.5           | 60.5         | 57.4            | 1,153.1            | 594.5    |
+|         | es   | 9.7           | 60.0         | 57.8            | 1,142.7            | 494.0    |
+|         | pt   | 9.5           | 60.0         | 56.9            | 1,142.1            | 308.0    |
+|         | nl   | 9.6           | 60.0         | 57.5            | 1,143.0            | 520.5    |
+|         | pl   | 10.0          | 62.1         | 59.8            | 809.7              | 514.5    |
+|         | ru   | 9.6           | 60.7         | 57.9            | 1,156.6            | 502.0    |
+
+#### Test Data
+##### Total dataset statistics:
+
+| Dataset | Lang | # speakers | # add. trial speakers | # enroll utts | # trial utts | # target trials | # nontarget trials | # words | avg. utt length |
+|---------|------|------------|-----------------------|---------------|--------------|-----------------|--------------------|---------|-----------------|
+| Libri*  | en   | 29         | 11                    | 438           | 1,496        | 997             | 20,653             | 35,042  | 7.83            |
+| VCTK*   | en   | 30         | 0                     | 600           | 11,448       | 4,386           | 36,104             | 86,642  | 3.16            |
+| MLS     | de   | 30         | 0                     | 329           | 3,065        | 1,906           | 28,744             | 110,202 | 15.18           |
+|         | fr   | 18         | 0                     | 357           | 2,069        | 2,069           | 16,552             | 79,524  | 14.94           |
+|         | it   | 10         | 0                     | 185           | 1,077        | 1,077           | 4,308              | 34,796  | 15.07           |
+|         | es   | 20         | 0                     | 348           | 2,037        | 2,037           | 18,333             | 75,536  | 15.11           |
+|         | pt   | 10         | 0                     | 125           | 746          | 746             | 2,984              | 26,769  | 15.47           |
+|         | nl   | 6          | 0                     | 458           | 2,617        | 2,617           | 5,234              | 108,489 | 14.96           |
+| CV      | en   | 30         | 9                     | 289           | 2,344        | 1,733           | 33,427             | 22,560  | 5.09            |
+|         | de   | 30         | 10                    | 284           | 2,377        | 1,713           | 33,942             | 21,492  | 5.24            |
+|         | fr   | 30         | 10                    | 291           | 2,408        | 1,745           | 34,275             | 22,887  | 4.74            |
+|         | it   | 30         | 10                    | 298           | 2,444        | 1,786           | 34,874             | 24,091  | 5.37            |
+|         | es   | 30         | 10                    | 284           | 2,377        | 1,703           | 33,952             | 22,655  | 5.25            |
+|         | pt   | 30         | 7                     | 290           | 2,213        | 1,743           | 31,452             | 15,727  | 4.23            |
+|         | nl   | 30         | 10                    | 283           | 2,254        | 1,704           | 32,106             | 19,913  | 4.32            |
+|         | pl   | 20         | 8                     | 196           | 1,712        | 1,181           | 15,939             | 13,809  | 4.82            |
+|         | ru   | 30         | 10                    | 294           | 2,435        | 1,759           | 34,766             | 20,509  | 5.13            |
+
+##### Dataset statistics per speaker (average)
+
+| Dataset | Lang | # enroll utts | # trial utts | # target trials | # nontarget trials | # words  | 
+|---------|------|---------------|--------------|-----------------|--------------------|----------|
+| Libri*  | en   | 15.1          | 37.4         | 34.4            | 713.6              | 671.5    |
+| VCTK*   | en   | 20.0          | 381.6        | 146.2           | 1,203.5            | 2,832.5  |
+| MLS     | de   | 16.4          | 102.2        | 95.3            | 1,437.2            | 4,047.0  |
+|         | fr   | 19.8          | 114.9        | 114.9           | 919.6              | 3,945.5  |
+|         | it   | 18.5          | 107.7        | 107.7           | 430.8              | 3,658.0  |
+|         | es   | 17.4          | 101.8        | 101.8           | 916.6              | 4,870.5  |
+|         | pt   | 12.5          | 74.6         | 74.6            | 298.4              | 3,141.5  |
+|         | nl   | 76.3          | 436.2        | 436.2           | 872.3              | 24,892.5 |
+| CV      | en   | 9.6           | 60.1         | 57.8            | 1,114.2            | 551.5    |
+|         | de   | 9.5           | 59.4         | 57.1            | 1,131.4            | 568.5    |
+|         | fr   | 9.7           | 60.2         | 58.2            | 1,145.8            | 618.0    |
+|         | it   | 9.9           | 61.1         | 59.5            | 1,162.5            | 612.0    |
+|         | es   | 9.5           | 59.4         | 56.8            | 1,131.7            | 610.0    |
+|         | pt   | 9.7           | 59.7         | 58.1            | 1,048.4            | 409.5    |
+|         | nl   | 9.4           | 59.3         | 56.8            | 1,070.2            | 564.0    |
+|         | pl   | 9.8           | 61.1         | 59.0            | 797.0              | 515.0    |
+|         | ru   | 9.8           | 60.9         | 58.6            | 1,158.9            | 392.5    |
 
 ## Audio Samples
 **Will be added soon.**
