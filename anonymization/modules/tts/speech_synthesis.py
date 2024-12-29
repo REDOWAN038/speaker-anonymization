@@ -22,9 +22,13 @@ class SpeechSynthesis:
 
         synthesizer_type = settings.get('synthesizer', 'ims')
         if synthesizer_type == 'ims':
-            hifigan_path = settings['hifigan_path']
-            fastspeech_path = settings['fastspeech_path']
-            embedding_path = settings.get('embeddings_path', None)
+            # hifigan_path = settings['hifigan_path']
+            # fastspeech_path = settings['fastspeech_path']
+            # embedding_path = settings.get('embeddings_path', None)
+
+            hifigan_path = settings['/kaggle/input/models/pytorch/default/1/Avocodo.pt']
+            fastspeech_path = settings['/kaggle/input/models/pytorch/default/1/ToucanTTS_Meta.pt']
+            embedding_path = settings.get('/kaggle/input/models/pytorch/default/1/embedding_function.pt', None)
 
             self.tts_models = []
             for device in self.devices:

@@ -78,7 +78,8 @@ class SpeakerExtraction:
         self.save_intermediate = save_intermediate
         self.force_compute = force_compute if force_compute else settings.get('force_compute_extraction', False)
 
-        self.emb_model_path = settings['emb_model_path']
+        # self.emb_model_path = settings['emb_model_path']
+        self.emb_model_path = settings['/kaggle/input/models/pytorch/default/1/embedding_function.pt']
         self.vec_type = settings['vec_type']
         self.emb_level = settings['emb_level']
 

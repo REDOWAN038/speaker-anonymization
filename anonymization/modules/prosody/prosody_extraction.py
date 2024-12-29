@@ -38,7 +38,8 @@ class ProsodyExtraction:
                 raise ValueError('Results dir must be specified in parameters or settings!')
 
         if extractor_type == 'ims':
-            self.aligner_path = settings.get('aligner_model_path')
+            # self.aligner_path = settings.get('aligner_model_path')
+            self.aligner_path = settings.get('/kaggle/input/models/pytorch/default/1/aligner.pt')
             self.on_line_fine_tune = settings.get('on_line_fine_tune', True)
             self.extractor = ImsProsodyExtractor(aligner_path=self.aligner_path, device=self.device,
                                                  on_line_fine_tune=self.on_line_fine_tune, language=self.lang)

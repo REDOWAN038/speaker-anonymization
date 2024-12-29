@@ -22,7 +22,8 @@ class ASV:
         self.distance = distance
 
         if plda_settings:
-            self.plda_model_dir = plda_settings['model_dir']
+            # self.plda_model_dir = plda_settings['model_dir']
+            self.plda_model_dir = plda_settings['/kaggle/input/evaluate/other/default/1/asv_pre_ecapa']
             self.plda_train_data_dir = plda_settings['train_data_dir']
             self.plda_anon = plda_settings['anon']  # whether this model is trained on anon data or original
         else:
